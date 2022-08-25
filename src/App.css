@@ -1,0 +1,286 @@
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  color: white;
+  background: url('./icon/background.png') no-repeat center center fixed; 
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  -o-background-size: cover;
+  background-size: cover;
+}
+
+.app {
+  width: 90%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.header {
+  width: 100%;
+  margin-top: 30px;
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.top-buttons {
+  display: flex;
+}
+
+.buy-token-button {
+  cursor: pointer;
+  font-family: russo one,sans-serif;
+  font-size: 16px;
+  padding: 11px 20px 9px;
+  color: #fff;
+  background-color: black;
+  border: 2px solid #393941;
+}
+
+.connect-button {
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  font-family: "Russo One", sans-serif;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 13px 32px 11px;
+  font-weight: bold;
+  background-color: white;
+  color: black;
+}
+
+.logo {
+  height: 70px;
+}
+
+.title {
+  margin-top: 20px;
+  font-size: 40px;
+  font-family: montserrat,sans-serif;
+  transform: scaleX(1.07);
+  margin-bottom: 40px;
+}
+
+.container {
+  margin-bottom: 30px;
+  min-width: 1280px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.stacking {
+  width: 48%;
+  box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+  padding: 30px;
+  border-radius: 15px;
+  font-family: 'HK Grotesk',sans-serif !important;
+  background: rgba(255,255,255,0.05);
+}
+
+.stacking-info {
+  width: 48%;
+}
+
+.stacking-info-card {
+  margin-bottom: 15px;
+  font-family: 'HK Grotesk',sans-serif;
+  width: 100%;
+  box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30px;
+  border-radius: 15px;
+  background: rgba(255,255,255,0.05);
+}
+
+.reward {
+  padding: auto 20px;
+  margin: 30px auto 20px auto;
+  display: flex;
+  justify-content: space-between;
+}
+
+.number {
+  font-size: 25px;
+  margin-bottom: 5px;
+  color: #a3ff12
+}
+
+.currency {
+  font-size: 25px;
+  margin-bottom: 5px;
+}
+
+.description {
+  font-size: 25px;
+}
+
+.customButton {
+  width: 150px;
+  height: 50px;
+  letter-spacing: 0.5px;
+  background-color: rgba(240, 49, 76, 0.7);
+  border: none;
+  color: white;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+.active{
+  background-color: rgba(25, 26, 24, 0.7);
+  border: none;
+}
+
+.input-style {
+  border: 1px solid #fff;
+  background: 0 0;
+  font-size: 20px;
+  padding: 10px 15px;
+  position: relative;
+  color: rgba(255,255,255,.7);
+}
+
+.input-button {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0px;
+}
+
+.style-button {
+  padding: 10px 15px;
+  font-size: 15px;
+  font-weight: bold;
+  background: rgba(203, 68, 214, 0.7);
+  color: white;
+  cursor: pointer;
+  border: 1px solid rgb(203, 68, 214);
+  border-radius: 10px;
+  transition: 0.5s;
+}
+
+.style-button:hover {
+  background: rgba(203, 68, 214, 0.6);
+}
+
+.clock {
+  font-weight: bold;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  text-align: center;
+}
+
+.history {
+  width: 100%;
+}
+
+.history-data {
+  width: 100%;
+}
+
+table,
+tr,
+th,
+td {
+    border-collapse: collapse;
+}
+
+#mobile-clock {
+  display: none;
+}
+
+@media screen and (max-width: 1280px) {
+  .container {
+    min-width: 1080px;
+  }
+
+  #desktop-clock {
+    display: block;
+  }
+}
+
+@media screen and (max-width: 1080px) {
+  .container {
+    min-width: 90%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  #mobile-clock {
+    display: block;
+  }
+
+  #desktop-clock {
+    display: none;
+  }
+
+  .stacking {
+    width: 100%;
+  }
+
+  .stacking-info {
+    margin-top: 30px;
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .logo {
+    height: 50px;
+  }
+
+  .connect-button {
+    display: none;
+  }
+
+  h3 {
+    font-size: 15px;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+}
+
+@media screen and (max-width: 550px) {
+  .input-style {
+     width: 100%;
+  }
+
+  .input-button {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .style-button {
+    width: 100%;
+  }
+
+  .number {
+    font-size: 20px;
+  }
+
+  .currency {
+    font-size: 20px;
+  }
+
+  .customButton {
+    width: 100px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .description {
+    font-size: 20px;
+  }
+}
