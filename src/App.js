@@ -227,7 +227,7 @@ export default function App() {
           </div>
           <div className="stacking-info">
             <div className="stacking-info-card clock" id="desktop-clock">
-              <span style={{ fontSize: '35px' }}>30</span>&nbsp;days
+              <span style={{ fontSize: '35px' }}>20</span>&nbsp;days
               &nbsp;<span style={{ fontSize: '35px' }}>4</span>&nbsp;hrs&nbsp;
               <span style={{ fontSize: '35px' }}>10</span>&nbsp;mins&nbsp;<span style={{ fontSize: '35px' }}>5</span>&nbsp;secs
             </div>
