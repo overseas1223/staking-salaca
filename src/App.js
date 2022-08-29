@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import Web3 from "web3";
-import { TOKEN_ADDRESS, STAKING_CONTRACT_ADDRESS } from './constants/constant';
-import { TOKEN_ABI, STAKING_CONTRACT_ABI } from './constants/abi';
+import React, { useState, useEffect } from 'react'
+import Web3 from "web3"
+import { TailSpin } from 'react-loader-spinner'
+import { TOKEN_ADDRESS, STAKING_CONTRACT_ADDRESS } from './constants/constant'
+import { TOKEN_ABI, STAKING_CONTRACT_ABI } from './constants/abi'
 import Logo from './icon/logo.svg'
 import connectIcon from './icon/connect.png'
 import rank from './icon/rank.png'
 import rank2 from './icon/rank2.png'
 import rank3 from './icon/rank3.png'
-import './App.css';
+import './App.css'
 
 const CHAIN_ID = '0x61'
 /* global BigInt */
@@ -21,9 +22,10 @@ export default function App() {
   const [chainId, setChainId] = useState('')
   const [wallet, setWallet] = useState('CONNECT WALLET')
   const [mode, setMode] = useState(0)
+  const [stakerMode, setStakerMode] = useState(-1)
+  const [period, setPeriod] = useState(30)
   const [rewardRate, setRewardRate] = useState(0)
   const [unstakeFee, setUnStakeFee] = useState(0)
-  const [withdrawFee, setWithdrawFee] = useState(0)
   const [stakeAmount, setStakeAmount] = useState(0.0)
   const [withdrawAmount, setWithDrawAmount] = useState(0.0)
   const [stakers, setStakers] = useState(0)
@@ -34,12 +36,24 @@ export default function App() {
   const [stakedUsdAmount, setStakedUsdAmount] = useState(0)
   const [stakedAmount, setStakedAmount] = useState(0)
   const [rewardAmount, setRewardAmount] = useState(0)
+  const [timerId, setTimerId] = useState(null)
+  const [leftTime, setLeftTime] = useState(0)
+  const [loading, setLoading] = useState(false)
 
   window.ethereum.on('accountsChanged', async () => {
     const accounts = await window.ethereum.request({method: 'eth_accounts'});
     if (!(accounts && accounts.length > 0)) {
       setWallet('CONNECT WALLET')
-      getStakeState()
+      setBalance(0)
+      setStakedAmount(0)
+      setRewardAmount(0)
+      setStakeAmount(0)
+      setWithDrawAmount(0)
+      setLeftTime(0)
+      setStakerMode(-1)
+      setChainId('')
+      setStakeTokenAmount(0)
+      setStakers(0)
     }
   });
 
@@ -62,31 +76,42 @@ export default function App() {
   }
 
   const getStakeState = async () => {
-    const result = await Promise.all([
+    setLoading(true)
+    const res1 = await Promise.all([
       stakeContract.methods.getNumberofStakers().call(),
       stakeContract.methods.getTotalStakedAmount().call(),
-      stakeContract.methods.getStakedAmount(wallet).call(),
-      stakeContract.methods.getRewardAmount(wallet).call(),
-      tokenContract.methods.balanceOf(wallet).call()
+      stakeContract.methods.isStartStaking(wallet).call(),
+      tokenContract.methods.balanceOf(wallet).call(),
     ])
+    setLoading(false)
+    setStakers(Number(res1[0]))
+    setStakeTokenAmount(Math.round(Number(res1[1] * 100) / (decimal * 100)))
+    setBalance(Math.round(Number(res1[3] * 100) / (decimal * 100)))
 
-    setStakers(Number(result[0]))
-    setStakeTokenAmount(Math.round(Number(result[1] * 100) / (decimal * 100)))
-    setStakedAmount(Math.round(Number(result[2] * 100) / (decimal * 100)))
-    setRewardAmount(Math.round(Number(result[3] * 100) / (decimal * 100)))
-    setBalance(Math.round(Number(result[4] * 100) / (decimal * 100)))
+    if(res1[2]) {
+      setLoading(true)
+      const result = await Promise.all([
+        stakeContract.methods.getStakedAmount(wallet).call(),
+        stakeContract.methods.getRewardAmount(wallet).call(),
+        stakeContract.methods.getStakerMode(wallet).call()
+      ])
+      setLoading(false)
+      setStakedAmount(Math.round(Number(result[0] * 100) / (decimal * 100)))
+      setRewardAmount(Math.round(Number(result[1] * 100) / (decimal * 100)))
+      setStakerMode(result[2])
+    }
   }
 
   const getRateAndFee = async () => {
+    setLoading(true)
     const result = await Promise.all([
       stakeContract.methods.getRewardRate(mode).call(),
       stakeContract.methods.getWithdrawFee(mode, false).call(),
-      stakeContract.methods.getWithdrawFee(mode, true).call()
     ])
-
+    setLoading(false)
     setRewardRate(Number(result[0]) / 100)
     setUnStakeFee(Number(result[1]) / 100)
-    setWithdrawFee(Number(result[2]) / 100)
+    setPeriod(mode === 0 ? 30 : mode * 90)
   }
 
   const stake = async () => {
@@ -96,11 +121,23 @@ export default function App() {
     } else if(stakeAmount > balance) {
       alert('Token balance is not Insufficient')
       return
+    } else if(mode !== stakerMode && stakerMode !== -1) {
+      alert('You already started staking')
+      return
     }
-
+    setLoading(true)
     await tokenContract.methods.approve(STAKING_CONTRACT_ADDRESS, BigInt(stakeAmount * decimal)).send({ from: wallet })
     await stakeContract.methods.startStaking(BigInt(stakeAmount * decimal), mode).send({ from: wallet })
+    setLoading(false)
+    setStakeAmount(0)
+    getLeftTime()
     getStakeState()
+  }
+
+  const getLeftTime = async () => {
+    const time = await stakeContract.methods.getLeftStakeTime(wallet).call()
+    if(timerId) clearInterval(timerId)
+    setLeftTime(time)
   }
 
   const withdraw = async () => {
@@ -111,19 +148,47 @@ export default function App() {
       alert("staked Amount is not Insufficient")
       return
     }
-
+    setLoading(true)
     await stakeContract.methods.withdraw(BigInt(withdrawAmount * decimal)).send({ from: wallet })
+    setLoading(false)
+    setWithDrawAmount(0)
     getStakeState()
   }
 
   const harvest = async () => {
+    if(rewardAmount <= 0) {
+      alert("There is no reward Amount")
+      return
+    }
+    setLoading(true)
     await stakeContract.methods.harvest().send({ from: wallet })
+    setLoading(false)
     getStakeState()
   }
 
   useEffect(() => { connectWallet() }, [])
-  useEffect(() => { if(chainId === CHAIN_ID) getStakeState() }, [chainId])
+  useEffect(() => { 
+    if(chainId === CHAIN_ID && wallet !== 'CONNECT WALLET') {
+      getStakeState() 
+      getLeftTime()
+    }
+  }, [chainId])
   useEffect(() => { getRateAndFee() }, [mode])
+  useEffect(() => {
+    if(leftTime > 0) {
+      if(timerId === null) {
+        let id = setInterval(() => {
+          if(leftTime > 0) setLeftTime(time => time - 1)
+        }, 1000)
+        setTimerId(id)
+      }
+    } else {
+      if(timerId) {
+        clearInterval(timerId)
+        setTimerId(null)
+      }
+    }
+  }, [leftTime])
 
   const ButtonGroup = ({ buttons, method, setMethod  }) => {
     const handleClick = (event, id) => { setMethod(id) }
@@ -144,6 +209,23 @@ export default function App() {
   };
   
   return (
+    <>
+      {loading &&
+        <div className="loading">
+          <div className="load">
+            <TailSpin
+              height="100"
+              width="100"
+              color="rgb(203, 68, 214)"
+              ariaLabel="tail-spin-loading"
+              radius="2"
+              wrapperStyle={{}}
+              wrapperClass=""
+              visible={true}
+            />
+          </div>
+      </div>
+      }
       <div className="app">
         <div className="header">
           <div>
@@ -164,9 +246,10 @@ export default function App() {
         </div>
         <div className="container">
             <div className="stacking-info-card clock" id="mobile-clock">
-              <span style={{ fontSize: '25px' }}>30</span>&nbsp;days
-              &nbsp;<span style={{ fontSize: '25px' }}>4</span>&nbsp;hrs&nbsp;
-              <span style={{ fontSize: '25px' }}>10</span>&nbsp;mins&nbsp;<span style={{ fontSize: '25px' }}>5</span>&nbsp;secs
+              {leftTime > 24 * 3600 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime / (24 * 3600))}</span>&nbsp;days&nbsp;</>}
+              {Math.floor(leftTime % (24 * 3600) / 3600) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime % (24 *3600) / 3600)}</span>&nbsp;hrs&nbsp;</>}
+              {Math.floor((leftTime % (24 * 3600) % 3600) / 60) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) / 60)}</span>&nbsp;mins&nbsp;</>}
+              <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) % 60)}</span>&nbsp;secs</>
             </div>
           <div className="stacking">
             <h1>STAKING</h1>
@@ -180,10 +263,10 @@ export default function App() {
             </div>
             <div className="reward">
               <div>
-                <h3 style={{ marginBottom: '8px' }}>Lock period: first {mode === 0 ? 30 : mode * 3 * 30} days</h3>
+                <h3 style={{ marginBottom: '8px' }}>Lock period: first {period} days</h3>
                 <h3 style={{ marginBottom: '8px' }}>Early unstake fee: {unstakeFee}%</h3>
-                <h3 style={{ marginBottom: '8px' }}>Status: unLocked</h3>
-                <h3 style={{ marginBottom: '8px' }}>Minimum Staking Amount: 3000000</h3>
+                <h3 style={{ marginBottom: '8px' }}>Status: {leftTime > 0 ? 'Locked' : 'UnLocked' }</h3>
+                {/* <h3 style={{ marginBottom: '8px' }}>Minimum Staking Amount: 3000000</h3> */}
               </div>
               <div>
                 <h3 style={{ textAlign: 'right', marginBottom: '8px' }}>Reward Rate</h3>
@@ -227,9 +310,10 @@ export default function App() {
           </div>
           <div className="stacking-info">
             <div className="stacking-info-card clock" id="desktop-clock">
-              <span style={{ fontSize: '35px' }}>20</span>&nbsp;days
-              &nbsp;<span style={{ fontSize: '35px' }}>4</span>&nbsp;hrs&nbsp;
-              <span style={{ fontSize: '35px' }}>10</span>&nbsp;mins&nbsp;<span style={{ fontSize: '35px' }}>5</span>&nbsp;secs
+              {leftTime > 24 * 3600 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime / (24 * 3600))}</span>&nbsp;days&nbsp;</>}
+              {Math.floor(leftTime % (24 * 3600) / 3600) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime % (24 *3600) / 3600)}</span>&nbsp;hrs&nbsp;</>}
+              {Math.floor((leftTime % (24 * 3600) % 3600) / 60) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) / 60)}</span>&nbsp;mins&nbsp;</>}
+              <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) % 60)}</span>&nbsp;secs</>
             </div>
             <div className="stacking-info-card">
               <div className="info">
@@ -273,17 +357,17 @@ export default function App() {
                     </thead>
                     <tbody>
                       <tr>
-                        <td>0x23432...asdf3</td>
+                        <td>0xe1ce...269a</td>
                         <td>555 SALACA</td>
                         <td>25 mins</td>
                       </tr>
                       <tr>
-                        <td>0x23432...asdf3</td>
+                        <td>0x10D1...8570</td>
                         <td>555 SALACA</td>
                         <td>25 mins</td>
                       </tr>
                       <tr>
-                        <td>0x23432...asdf3</td>
+                        <td>0x9Dbe...0119</td>
                         <td>555 SALACA</td>
                         <td>25 mins</td>
                       </tr>
@@ -294,5 +378,6 @@ export default function App() {
           </div>
         </div>
       </div>
-  );
+    </>
+  )
 }
