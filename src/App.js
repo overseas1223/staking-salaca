@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import Web3 from "web3"
 import WalletConnectProvider from "@walletconnect/web3-provider"
+import {NotificationContainer, NotificationManager} from 'react-notifications'
+import { useWeb3React } from "@web3-react/core"
+import { WalletConnectConnector } from "@web3-react/walletconnect-connector"
 import { TailSpin } from 'react-loader-spinner'
 import Modal from 'react-responsive-modal'
 import { TOKEN_ADDRESS, STAKING_CONTRACT_ADDRESS } from './constants/constant'
@@ -14,31 +17,53 @@ import metaMaskIcon from "./icon/metamask-icon.png"
 import walletConnectIcon from "./icon/walletconnect-icon.png"
 import './App.css'
 import 'react-responsive-modal/styles.css'
+import 'react-notifications/lib/notifications.css'
 
 const CHAIN_ID = '0x61'
-const provider = new WalletConnectProvider({
-  infuraId: "e865674e82ea42d18b4ecda5279265ac", // Required
-  qucode: false,
-  rpc: {
-      97: "https://data-seed-prebsc-1-s1.binance.org:8545"
+
+const chainConfig = {
+  CHAIN_ID,
+  chainName: 'BSC Testnet',
+  nativeCurrency: {
+    name: 'BNB',
+    symbol: 'BNB',
+    decimals: 18
   },
+  rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545/'],
+  blockExplorerUrls: ['https://testnet.bscscan.com']
+}
+
+const walletConnectConnector = new WalletConnectConnector({
+  infuraId: "e865674e82ea42d18b4ecda5279265ac",
+  rpc: {
+    97:'https://data-seed-prebsc-1-s1.binance.org:8545/',
+  },
+  qrcode: true,
+  bridge: "https://bridge.walletconnect.org"
 });
 
 /* global BigInt */
 
 export default function App() {
   // console.log(process.env.REACT_APP_RPC_URL_WSS)
-  let web3 = new Web3(window.ethereum)
+  let web3 = null
   const decimal = 10 ** 18
-  let tokenContract = new web3.eth.Contract(TOKEN_ABI, TOKEN_ADDRESS)
-  let stakeContract = new web3.eth.Contract(STAKING_CONTRACT_ABI, STAKING_CONTRACT_ADDRESS)
+  let tokenContract = null
+  let stakeContract = null
+  if(window.ethereum) {
+    web3 = new Web3(window.ethereum)
+    tokenContract = new web3.eth.Contract(TOKEN_ABI, TOKEN_ADDRESS)
+    stakeContract = new web3.eth.Contract(STAKING_CONTRACT_ABI, STAKING_CONTRACT_ADDRESS)
+  }
 
+  const { activate, account, deactivate, privateKey } = useWeb3React()
   const [open, setOpen] = useState(false)
+  const [openDisconnect, setOpenDisconnect] = useState(false)
   const [chainId, setChainId] = useState('')
   const [wallet, setWallet] = useState('CONNECT WALLET')
-  const [mode, setMode] = useState(0)
+  const [mode, setMode] = useState(-1)
   const [stakerMode, setStakerMode] = useState(-1)
-  const [period, setPeriod] = useState(30)
+  const [period, setPeriod] = useState(0)
   const [rewardRate, setRewardRate] = useState(0)
   const [unstakeFee, setUnStakeFee] = useState(0)
   const [stakeAmount, setStakeAmount] = useState(0.0)
@@ -55,36 +80,25 @@ export default function App() {
   const [leftTime, setLeftTime] = useState(0)
   const [loading, setLoading] = useState(false)
 
-  window.ethereum.on('accountsChanged', async () => {
-    const accounts = await window.ethereum.request({method: 'eth_accounts'});
-    if (!(accounts && accounts.length > 0)) {
-      setWallet('CONNECT WALLET')
-      setBalance(0)
-      setStakedAmount(0)
-      setRewardAmount(0)
-      setStakeAmount(0)
-      setWithDrawAmount(0)
-      setLeftTime(0)
-      setStakerMode(-1)
-      setChainId('')
-      setStakeTokenAmount(0)
-      setStakers(0)
-    }
-  })
-
-  provider.connector.on('display_uri', (err, payload) => {
-    if (err) { return }
-    const uri = payload.params[0]
-    console.log(uri)
-    window.open(uri)
-  })
-
-  provider.on('accountsChanged', (accounts) => {
-    console.log(accounts)
-    setWallet(accounts[0] || 'CONNECT WALLET')
-    // dispatch(SaleAction.setCurWallet(accounts[0]))
-  })
-
+  const disconnectWallet = () => {
+    setOpenDisconnect(false)
+    localStorage.clear()
+    setWallet('CONNECT WALLET')
+    setBalance(0)
+    setStakedAmount(0)
+    setRewardAmount(0)
+    setStakeAmount(0)
+    setWithDrawAmount(0)
+    setLeftTime(0)
+    setStakerMode(-1)
+    setChainId('')
+    setStakeTokenAmount(0)
+    setStakers(0)
+    setRewardRate(0)
+    setUnStakeFee(0)
+    setPeriod(0)
+    setMode(-1)
+  }
 
   const connectMetamask = async () => {
     setOpen(false)
@@ -93,24 +107,38 @@ export default function App() {
         .then(async (accounts) => {
           let chainId = window.ethereum.chainId // 0x1 Ethereum, 0x2 testnet, 0x89 Polygon, etc.
           setWallet(accounts[0])
+          localStorage.setItem('wallet', accounts[0])
           if(chainId !== CHAIN_ID) {
             await window.ethereum.request({
               method: 'wallet_switchEthereumChain',
               params: [{ chainId: Web3.utils.toHex(CHAIN_ID) }],
             }).then((res) => { setChainId(CHAIN_ID) }).catch(err => console.log(err))
           } else setChainId(CHAIN_ID)
-        }).catch((err) => console.log(err))
-    } else {
-      console.log("Please install metamask")
-    }
+        }).catch(async (err) => {
+          if (err.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [chainConfig]
+            })
+            setChainId(CHAIN_ID)
+          }
+        })
+    } else NotificationManager.error('Please install Metamask', 'Error', 5000)
   }
+
+  useEffect(() => {
+    if(account != undefined)
+      alert(account);
+  }, [account])
 
   const walletConnect = async () => {
     setOpen(false)
-    return provider.enable()
+    await activate(walletConnectConnector)
+    // alert(account)
   }
 
   const getStakeState = async () => {
+    if(!stakeContract) return
     setLoading(true)
     const res1 = await Promise.all([
       stakeContract.methods.getNumberofStakers().call(),
@@ -138,6 +166,7 @@ export default function App() {
   }
 
   const getRateAndFee = async () => {
+    if(!localStorage.getItem('wallet') || mode === -1) return
     setLoading(true)
     const result = await Promise.all([
       stakeContract.methods.getRewardRate(mode).call(),
@@ -150,61 +179,69 @@ export default function App() {
   }
 
   const stake = async () => {
-    if(stakeAmount <= 0) {
-      alert('stakeAmount should be more than zero')
-      return
-    } else if(stakeAmount > balance) {
-      alert('Token balance is not Insufficient')
-      return
-    } else if(mode !== stakerMode && stakerMode !== -1) {
-      alert('You already started staking')
-      return
-    }
-    setLoading(true)
-    await tokenContract.methods.approve(STAKING_CONTRACT_ADDRESS, BigInt(stakeAmount * decimal)).send({ from: wallet })
-    await stakeContract.methods.startStaking(BigInt(stakeAmount * decimal), mode).send({ from: wallet })
-    setLoading(false)
-    setStakeAmount(0)
-    getLeftTime()
-    getStakeState()
+    if(wallet !== 'CONNECT WALLET') {
+      if(stakeAmount <= 0) {
+        NotificationManager.error('Stake Amount should be more than zero', 'Error', 5000)
+        return
+      } else if(stakeAmount > balance) {
+        NotificationManager.error('Token balance is Insufficient', 'Error', 5000)
+        return
+      } else if(mode !== stakerMode && stakerMode !== -1) {
+        NotificationManager.info('You already started staking', 'Info', 5000)
+        return
+      }
+      setLoading(true)
+      await tokenContract.methods.approve(STAKING_CONTRACT_ADDRESS, BigInt(stakeAmount * decimal)).send({ from: wallet })
+      await stakeContract.methods.startStaking(BigInt(stakeAmount * decimal), mode).send({ from: wallet })
+      setLoading(false)
+      setStakeAmount(0)
+      getLeftTime()
+      getStakeState()
+    } else NotificationManager.error('Please connect wallet', 'Error', 5000)
   }
 
   const getLeftTime = async () => {
+    if(wallet === 'CONNECT WALLET') return
     const time = await stakeContract.methods.getLeftStakeTime(wallet).call()
     if(timerId) clearInterval(timerId)
     setLeftTime(time)
   }
 
   const withdraw = async () => {
-    if(withdrawAmount <= 0) {
-      alert("Withdraw Amount should be more than zero")
-      return
-    } else if(withdrawAmount >= stakedAmount) {
-      alert("staked Amount is not Insufficient")
-      return
-    }
-    setLoading(true)
-    await stakeContract.methods.withdraw(BigInt(withdrawAmount * decimal)).send({ from: wallet })
-    setLoading(false)
-    setWithDrawAmount(0)
-    getStakeState()
+    if(wallet !== 'CONNECT WALLET') {
+      if(withdrawAmount <= 0) {
+        NotificationManager.error('Withdraw Amount should be more than zero', 'Error', 5000)
+        return
+      } else if(withdrawAmount >= stakedAmount) {
+        NotificationManager.error("staked Amount is Insufficient", 'Error', 5000)
+        return
+      }
+      setLoading(true)
+      await stakeContract.methods.withdraw(BigInt(withdrawAmount * decimal)).send({ from: wallet })
+      setLoading(false)
+      setWithDrawAmount(0)
+      getStakeState()
+    } else NotificationManager.error('Please connect wallet', 'Error', 5000)
   }
 
   const harvest = async () => {
-    if(rewardAmount <= 0) {
-      alert("There is no reward Amount")
-      return
-    }
-    setLoading(true)
-    await stakeContract.methods.harvest().send({ from: wallet })
-    setLoading(false)
-    getStakeState()
+    if(wallet !== 'CONNECT WALLET') {
+      if(rewardAmount <= 0) {
+        NotificationManager.error('No reward', 'Error', 5000)
+        return
+      }
+      setLoading(true)
+      await stakeContract.methods.harvest().send({ from: wallet })
+      setLoading(false)
+      getStakeState()
+    } else NotificationManager.error('Please connect wallet', 'Error', 5000)
   }
 
   useEffect(() => { 
     if(chainId === CHAIN_ID && wallet !== 'CONNECT WALLET') {
       getStakeState() 
       getLeftTime()
+      setMode(0)
     }
   }, [chainId])
   useEffect(() => { getRateAndFee() }, [mode])
@@ -223,6 +260,22 @@ export default function App() {
       }
     }
   }, [leftTime])
+  useEffect(() => {
+    if(localStorage.getItem('wallet')) setWallet(localStorage.getItem('wallet'))
+    if(window.ethereum) {
+      window.ethereum.on('accountsChanged', async () => {
+        const accounts = await window.ethereum.request({method: 'eth_accounts'});
+        if (!(accounts && accounts.length > 0)) disconnectWallet()
+      })
+    }
+  }, [])
+  useEffect(() => {
+    if(wallet !== 'CONNECT WALLET') {
+      getStakeState()
+      getLeftTime()
+      setMode(0)
+    }
+  }, [wallet])
 
   const closeIcon = (
     <svg
@@ -262,6 +315,7 @@ export default function App() {
   
   return (
     <>
+    <NotificationContainer/>
       {loading &&
         <div className="loading">
           <div className="load">
@@ -287,16 +341,26 @@ export default function App() {
           <span>WalletConnect</span><div style={{ width: '50px', textAlign: 'center'}}><img src={walletConnectIcon} alt="walletConnect" width={40} height={25}/></div>
         </div>
       </Modal>
+      <Modal open={openDisconnect} onClose={() => setOpenDisconnect(false)} center classNames={{overlay: 'overlay', modal: 'modal'}} animationDuration={500}  closeIcon={closeIcon}>
+        <h2>Disconnect Wallet</h2>
+        <div className="wallet" onClick={disconnectWallet}>
+          <span>Disconnect {wallet.substring(0, 9).toUpperCase()}...{wallet.substring(-1, 4).toUpperCase()}</span>
+        </div>
+        
+      </Modal>
       <div className="app">
         <div className="header">
           <div>
             <img className="logo" src={Logo} alt="logo" />
           </div>
           <div className="top-buttons">
-            <button className="buy-token-button">
+            {/* <button className="buy-token-button">
               <span>BUY TOKEN</span>
-            </button>
-            <button className="connect-button" onClick={() => { setOpen(true) }}>
+            </button> */}
+            <button className="connect-button" onClick={() => { 
+              if(wallet === 'CONNECT WALLET') setOpen(true)
+              // else setOpenDisconnect(true)
+            }}>
               <img src={connectIcon} alt="connect-icon"/>
               <span style={{ marginLeft: '8px' }}>{wallet === 'CONNECT WALLET' ? wallet : `${wallet.substring(0, 9).toUpperCase()}...${wallet.substring(-1, 4).toUpperCase()}`}</span>
             </button>
@@ -307,10 +371,10 @@ export default function App() {
         </div>
         <div className="container">
             <div className="stacking-info-card clock" id="mobile-clock">
-              {leftTime > 24 * 3600 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime / (24 * 3600))}</span>&nbsp;days&nbsp;</>}
-              {Math.floor(leftTime % (24 * 3600) / 3600) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime % (24 *3600) / 3600)}</span>&nbsp;hrs&nbsp;</>}
-              {Math.floor((leftTime % (24 * 3600) % 3600) / 60) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) / 60)}</span>&nbsp;mins&nbsp;</>}
-              <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) % 60)}</span>&nbsp;secs</>
+              {leftTime > 24 * 3600 && <><span style={{ fontSize: '25px' }}>{Math.floor(leftTime / (24 * 3600)) < 10 ? '0' : ''}{Math.floor(leftTime / (24 * 3600))}</span>&nbsp;days&nbsp;</>}
+              {Math.floor(leftTime % (24 * 3600) / 3600) > 0 && <><span style={{ fontSize: '25px' }}>{Math.floor(leftTime % (24 *3600) / 3600) < 10 ? '0' : ''}{Math.floor(leftTime % (24 *3600) / 3600)}</span>&nbsp;hrs&nbsp;</>}
+              {Math.floor((leftTime % (24 * 3600) % 3600) / 60) > 0 && <><span style={{ fontSize: '25px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) / 60) < 10 ? '0' : ''}{Math.floor((leftTime % (24 * 3600) % 3600) / 60)}</span>&nbsp;mins&nbsp;</>}
+              <><span style={{ fontSize: '25px' }}>{(Math.floor((leftTime % (24 * 3600) % 3600) % 60) < 10 && leftTime !== 0) ? '0' : ''}{Math.floor((leftTime % (24 * 3600) % 3600) % 60)}</span>&nbsp;secs</>
             </div>
           <div className="stacking">
             <h1>STAKING</h1>

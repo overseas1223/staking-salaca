@@ -287,12 +287,12 @@ td {
 
 @media screen and (max-width: 768px) {
   .logo {
-    height: 50px;
+    height: 40px;
   }
 
-  .connect-button {
+  /* .connect-button {
     display: none;
-  }
+  } */
 
   h3 {
     font-size: 15px;
@@ -333,5 +333,17 @@ td {
 
   .description {
     font-size: 20px;
+  }
+
+  .connect-button {
+    display: flex;
+    align-items: center;
+    font-family: "Russo One", sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 8px 25px 8px;
+    font-weight: bold;
+    background-color: white;
+    color: black;
   }
 }
