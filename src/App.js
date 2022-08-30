@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import Web3 from "web3"
+import WalletConnectProvider from "@walletconnect/web3-provider"
 import { TailSpin } from 'react-loader-spinner'
+import Modal from 'react-responsive-modal'
 import { TOKEN_ADDRESS, STAKING_CONTRACT_ADDRESS } from './constants/constant'
 import { TOKEN_ABI, STAKING_CONTRACT_ABI } from './constants/abi'
 import Logo from './icon/logo.svg'
@@ -8,17 +10,30 @@ import connectIcon from './icon/connect.png'
 import rank from './icon/rank.png'
 import rank2 from './icon/rank2.png'
 import rank3 from './icon/rank3.png'
+import metaMaskIcon from "./icon/metamask-icon.png"
+import walletConnectIcon from "./icon/walletconnect-icon.png"
 import './App.css'
+import 'react-responsive-modal/styles.css'
 
 const CHAIN_ID = '0x61'
+const provider = new WalletConnectProvider({
+  infuraId: "e865674e82ea42d18b4ecda5279265ac", // Required
+  qucode: false,
+  rpc: {
+      97: "https://data-seed-prebsc-1-s1.binance.org:8545"
+  },
+});
+
 /* global BigInt */
 
 export default function App() {
+  // console.log(process.env.REACT_APP_RPC_URL_WSS)
   let web3 = new Web3(window.ethereum)
   const decimal = 10 ** 18
   let tokenContract = new web3.eth.Contract(TOKEN_ABI, TOKEN_ADDRESS)
   let stakeContract = new web3.eth.Contract(STAKING_CONTRACT_ABI, STAKING_CONTRACT_ADDRESS)
 
+  const [open, setOpen] = useState(false)
   const [chainId, setChainId] = useState('')
   const [wallet, setWallet] = useState('CONNECT WALLET')
   const [mode, setMode] = useState(0)
@@ -55,9 +70,24 @@ export default function App() {
       setStakeTokenAmount(0)
       setStakers(0)
     }
-  });
+  })
 
-  const connectWallet = async () => {
+  provider.connector.on('display_uri', (err, payload) => {
+    if (err) { return }
+    const uri = payload.params[0]
+    console.log(uri)
+    window.open(uri)
+  })
+
+  provider.on('accountsChanged', (accounts) => {
+    console.log(accounts)
+    setWallet(accounts[0] || 'CONNECT WALLET')
+    // dispatch(SaleAction.setCurWallet(accounts[0]))
+  })
+
+
+  const connectMetamask = async () => {
+    setOpen(false)
     if(window.ethereum) {
       await window.ethereum.request({ method: "eth_requestAccounts" })
         .then(async (accounts) => {
@@ -73,6 +103,11 @@ export default function App() {
     } else {
       console.log("Please install metamask")
     }
+  }
+
+  const walletConnect = async () => {
+    setOpen(false)
+    return provider.enable()
   }
 
   const getStakeState = async () => {
@@ -166,7 +201,6 @@ export default function App() {
     getStakeState()
   }
 
-  useEffect(() => { connectWallet() }, [])
   useEffect(() => { 
     if(chainId === CHAIN_ID && wallet !== 'CONNECT WALLET') {
       getStakeState() 
@@ -189,6 +223,24 @@ export default function App() {
       }
     }
   }, [leftTime])
+
+  const closeIcon = (
+    <svg
+      width={"24"}
+      height={"24"}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ cursor: "pointer" }}
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M17.2328 18.4688C17.5746 18.8105 18.1286 18.8105 18.4703 18.4688C18.812 18.1271 18.812 17.573 18.4703 17.2313L13.6886 12.4497L18.4695 7.66877C18.8112 7.32706 18.8112 6.77304 18.4695 6.43133C18.1278 6.08962 17.5738 6.08962 17.2321 6.43133L12.4512 11.2122L7.67028 6.43133C7.32857 6.08962 6.77455 6.08962 6.43284 6.43133C6.09114 6.77304 6.09114 7.32706 6.43284 7.66877L11.2137 12.4497L6.43206 17.2313C6.09036 17.573 6.09036 18.1271 6.43206 18.4688C6.77377 18.8105 7.32779 18.8105 7.6695 18.4688L12.4512 13.6871L17.2328 18.4688Z"
+        fill={"white"}
+      />
+    </svg>
+  )
 
   const ButtonGroup = ({ buttons, method, setMethod  }) => {
     const handleClick = (event, id) => { setMethod(id) }
@@ -226,6 +278,15 @@ export default function App() {
           </div>
       </div>
       }
+      <Modal open={open} onClose={() => setOpen(false)} center classNames={{overlay: 'overlay', modal: 'modal'}} animationDuration={500}  closeIcon={closeIcon}>
+        <h2>Connect Wallet</h2>
+        <div className="wallet" onClick={connectMetamask}>
+          <span>MetaMask</span><div style={{ width: '50px', textAlign: 'center'}}><img src={metaMaskIcon} alt="metamask" width={25} height={25}/></div>
+        </div>
+        <div className="wallet" onClick={walletConnect}>
+          <span>WalletConnect</span><div style={{ width: '50px', textAlign: 'center'}}><img src={walletConnectIcon} alt="walletConnect" width={40} height={25}/></div>
+        </div>
+      </Modal>
       <div className="app">
         <div className="header">
           <div>
@@ -235,7 +296,7 @@ export default function App() {
             <button className="buy-token-button">
               <span>BUY TOKEN</span>
             </button>
-            <button className="connect-button" onClick={connectWallet}>
+            <button className="connect-button" onClick={() => { setOpen(true) }}>
               <img src={connectIcon} alt="connect-icon"/>
               <span style={{ marginLeft: '8px' }}>{wallet === 'CONNECT WALLET' ? wallet : `${wallet.substring(0, 9).toUpperCase()}...${wallet.substring(-1, 4).toUpperCase()}`}</span>
             </button>

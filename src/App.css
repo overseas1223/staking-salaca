@@ -37,6 +37,36 @@ body {
   left: 50%;
 }
 
+.overlay {
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.modal {
+  max-width: 350px;
+  width: 350px;
+  border-radius: 20px;
+  box-shadow: rgba(0, 0, 0, 0.0) 0px 54px 55px, rgba(0, 0, 0, 0) 0px -12px 30px, rgba(0, 0, 0, 0) 0px 4px 6px, rgba(0, 0, 0, 0) 0px 12px 13px, rgba(0, 0, 0, 0) 0px -3px 5px;
+  background: rgba(255,255,255,0.1) !important;
+}
+
+.wallet {
+  margin: 15px auto;
+  font-size: 20px;
+  padding: 10px;
+  border-radius: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  border: 2px solid rgba(203, 68, 214, 0);
+  box-shadow: rgba(0, 0, 0, 0.0) 0px 54px 55px, rgba(0, 0, 0, 0) 0px -12px 30px, rgba(0, 0, 0, 0) 0px 4px 6px, rgba(0, 0, 0, 0) 0px 12px 13px, rgba(0, 0, 0, 0) 0px -3px 5px;
+  background: rgba(255,255,255,0.1) !important;
+}
+
+.wallet:hover {
+  border: 2px solid rgba(203, 68, 214, 0.7);
+}
+
 .header {
   width: 100%;
   margin-top: 30px;
