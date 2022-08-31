@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Web3 from "web3"
-import WalletConnectProvider from "@walletconnect/web3-provider"
 import {NotificationContainer, NotificationManager} from 'react-notifications'
-import { useWeb3React } from "@web3-react/core"
-import { WalletConnectConnector } from "@web3-react/walletconnect-connector"
+import WalletConnectProvider from "@walletconnect/web3-provider"
 import { TailSpin } from 'react-loader-spinner'
 import Modal from 'react-responsive-modal'
 import { TOKEN_ADDRESS, STAKING_CONTRACT_ADDRESS } from './constants/constant'
@@ -32,35 +30,39 @@ const chainConfig = {
   rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545/'],
   blockExplorerUrls: ['https://testnet.bscscan.com']
 }
-
-const walletConnectConnector = new WalletConnectConnector({
-  infuraId: "e865674e82ea42d18b4ecda5279265ac",
-  rpc: {
-    97:'https://data-seed-prebsc-1-s1.binance.org:8545/',
-  },
-  qrcode: true,
-  bridge: "https://bridge.walletconnect.org"
-});
-
 /* global BigInt */
+
+// let WC = new WalletConnect({ 
+//   infuraId: 'e865674e82ea42d18b4ecda5279265ac',
+//   bridge: "https://bridge.walletconnect.org",
+//   qrcodeModal: QRCodeModal 
+// })
+
+const provider = new WalletConnectProvider({
+  infuraId: "e865674e82ea42d18b4ecda5279265ac", // Required
+  // bridge: "https://bridge.myhostedserver.com",
+  // qrcode: true,
+  rpc: {
+      97: "https://data-seed-prebsc-1-s1.binance.org:8545/"
+  },
+})
 
 export default function App() {
   // console.log(process.env.REACT_APP_RPC_URL_WSS)
-  let web3 = null
   const decimal = 10 ** 18
   let tokenContract = null
   let stakeContract = null
-  if(window.ethereum) {
-    web3 = new Web3(window.ethereum)
-    tokenContract = new web3.eth.Contract(TOKEN_ABI, TOKEN_ADDRESS)
-    stakeContract = new web3.eth.Contract(STAKING_CONTRACT_ABI, STAKING_CONTRACT_ADDRESS)
-  }
+  let web3 = window.ethereum ? new Web3(window.ethereum) : new Web3(provider)
+  console.log(web3)
+  
+  tokenContract = new web3.eth.Contract(TOKEN_ABI, TOKEN_ADDRESS)
+  stakeContract = new web3.eth.Contract(STAKING_CONTRACT_ABI, STAKING_CONTRACT_ADDRESS)
 
-  const { activate, account, deactivate, privateKey } = useWeb3React()
   const [open, setOpen] = useState(false)
   const [openDisconnect, setOpenDisconnect] = useState(false)
   const [chainId, setChainId] = useState('')
   const [wallet, setWallet] = useState('CONNECT WALLET')
+  const [connector, setConnector] = useState(null)
   const [mode, setMode] = useState(-1)
   const [stakerMode, setStakerMode] = useState(-1)
   const [period, setPeriod] = useState(0)
@@ -98,6 +100,11 @@ export default function App() {
     setUnStakeFee(0)
     setPeriod(0)
     setMode(-1)
+
+    if (connector && connector.connected) {
+      connector.killSession();
+      setConnector(null)
+    }
   }
 
   const connectMetamask = async () => {
@@ -105,15 +112,18 @@ export default function App() {
     if(window.ethereum) {
       await window.ethereum.request({ method: "eth_requestAccounts" })
         .then(async (accounts) => {
+          
           let chainId = window.ethereum.chainId // 0x1 Ethereum, 0x2 testnet, 0x89 Polygon, etc.
           setWallet(accounts[0])
           localStorage.setItem('wallet', accounts[0])
+          
           if(chainId !== CHAIN_ID) {
             await window.ethereum.request({
               method: 'wallet_switchEthereumChain',
               params: [{ chainId: Web3.utils.toHex(CHAIN_ID) }],
             }).then((res) => { setChainId(CHAIN_ID) }).catch(err => console.log(err))
           } else setChainId(CHAIN_ID)
+
         }).catch(async (err) => {
           if (err.code === 4902) {
             await window.ethereum.request({
@@ -123,23 +133,21 @@ export default function App() {
             setChainId(CHAIN_ID)
           }
         })
-    } else NotificationManager.error('Please install Metamask', 'Error', 5000)
+    } else NotificationManager.error('Metamask is not installed', 'Error', 3000)
   }
 
-  useEffect(() => {
-    if(account != undefined)
-      alert(account);
-  }, [account])
-
   const walletConnect = async () => {
-    setOpen(false)
-    await activate(walletConnectConnector)
-    // alert(account)
+    try {  
+      setOpen(false)
+      await provider.enable()
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   const getStakeState = async () => {
     if(!stakeContract) return
-    setLoading(true)
+    // setLoading(true)
     const res1 = await Promise.all([
       stakeContract.methods.getNumberofStakers().call(),
       stakeContract.methods.getTotalStakedAmount().call(),
@@ -152,7 +160,7 @@ export default function App() {
     setBalance(Math.round(Number(res1[3] * 100) / (decimal * 100)))
 
     if(res1[2]) {
-      setLoading(true)
+      // setLoading(true)
       const result = await Promise.all([
         stakeContract.methods.getStakedAmount(wallet).call(),
         stakeContract.methods.getRewardAmount(wallet).call(),
@@ -166,8 +174,8 @@ export default function App() {
   }
 
   const getRateAndFee = async () => {
-    if(!localStorage.getItem('wallet') || mode === -1) return
-    setLoading(true)
+    if((!localStorage.getItem('wallet') && !localStorage.getItem('walletconnect')) || mode === -1) return
+    // setLoading(true)
     const result = await Promise.all([
       stakeContract.methods.getRewardRate(mode).call(),
       stakeContract.methods.getWithdrawFee(mode, false).call(),
@@ -181,13 +189,13 @@ export default function App() {
   const stake = async () => {
     if(wallet !== 'CONNECT WALLET') {
       if(stakeAmount <= 0) {
-        NotificationManager.error('Stake Amount should be more than zero', 'Error', 5000)
+        NotificationManager.error('Stake Amount should be more than zero', 'Error', 3000)
         return
       } else if(stakeAmount > balance) {
-        NotificationManager.error('Token balance is Insufficient', 'Error', 5000)
+        NotificationManager.error('Token balance is Insufficient', 'Error', 3000)
         return
       } else if(mode !== stakerMode && stakerMode !== -1) {
-        NotificationManager.info('You already started staking', 'Info', 5000)
+        NotificationManager.info('You already started staking', 'Info', 3000)
         return
       }
       setLoading(true)
@@ -197,7 +205,7 @@ export default function App() {
       setStakeAmount(0)
       getLeftTime()
       getStakeState()
-    } else NotificationManager.error('Please connect wallet', 'Error', 5000)
+    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
   }
 
   const getLeftTime = async () => {
@@ -210,10 +218,10 @@ export default function App() {
   const withdraw = async () => {
     if(wallet !== 'CONNECT WALLET') {
       if(withdrawAmount <= 0) {
-        NotificationManager.error('Withdraw Amount should be more than zero', 'Error', 5000)
+        NotificationManager.error('Withdraw Amount should be more than zero', 'Error', 3000)
         return
       } else if(withdrawAmount >= stakedAmount) {
-        NotificationManager.error("staked Amount is Insufficient", 'Error', 5000)
+        NotificationManager.error("staked Amount is Insufficient", 'Error', 3000)
         return
       }
       setLoading(true)
@@ -221,20 +229,20 @@ export default function App() {
       setLoading(false)
       setWithDrawAmount(0)
       getStakeState()
-    } else NotificationManager.error('Please connect wallet', 'Error', 5000)
+    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
   }
 
   const harvest = async () => {
     if(wallet !== 'CONNECT WALLET') {
       if(rewardAmount <= 0) {
-        NotificationManager.error('No reward', 'Error', 5000)
+        NotificationManager.error('No reward', 'Error', 3000)
         return
       }
       setLoading(true)
       await stakeContract.methods.harvest().send({ from: wallet })
       setLoading(false)
       getStakeState()
-    } else NotificationManager.error('Please connect wallet', 'Error', 5000)
+    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
   }
 
   useEffect(() => { 
@@ -262,6 +270,7 @@ export default function App() {
   }, [leftTime])
   useEffect(() => {
     if(localStorage.getItem('wallet')) setWallet(localStorage.getItem('wallet'))
+    if(localStorage.getItem('walletconnect')) setWallet(JSON.parse(localStorage.getItem('walletconnect')).accounts[0])
     if(window.ethereum) {
       window.ethereum.on('accountsChanged', async () => {
         const accounts = await window.ethereum.request({method: 'eth_accounts'});
@@ -276,6 +285,32 @@ export default function App() {
       setMode(0)
     }
   }, [wallet])
+  useEffect(() => {
+    provider.on("accountsChanged", (accounts) => {
+      console.log(accounts)
+    });
+    // if (connector) {
+    //   connector.on("session_update", (error, payload) => {
+    //     console.log(payload)
+    //   })
+
+    //   connector.on("connect", (error, payload) => {
+    //     const { chainId, accounts } = connector;
+    //     setChainId('0x' + chainId.toString(16))
+    //     setWallet(accounts[0])
+    //   })
+
+    //   connector.on("disconnect", (error, payload) => {
+    //     disconnectWallet()
+    //   })
+
+    //   if (connector.connected) {
+    //     const { chainId, accounts } = connector;
+    //     setChainId('0x' + chainId.toString(16))
+    //     setWallet(accounts[0])
+    //   }
+    // }
+  }, [connector])
 
   const closeIcon = (
     <svg
@@ -359,7 +394,7 @@ export default function App() {
             </button> */}
             <button className="connect-button" onClick={() => { 
               if(wallet === 'CONNECT WALLET') setOpen(true)
-              // else setOpenDisconnect(true)
+              else setOpenDisconnect(true)
             }}>
               <img src={connectIcon} alt="connect-icon"/>
               <span style={{ marginLeft: '8px' }}>{wallet === 'CONNECT WALLET' ? wallet : `${wallet.substring(0, 9).toUpperCase()}...${wallet.substring(-1, 4).toUpperCase()}`}</span>
@@ -374,7 +409,7 @@ export default function App() {
               {leftTime > 24 * 3600 && <><span style={{ fontSize: '25px' }}>{Math.floor(leftTime / (24 * 3600)) < 10 ? '0' : ''}{Math.floor(leftTime / (24 * 3600))}</span>&nbsp;days&nbsp;</>}
               {Math.floor(leftTime % (24 * 3600) / 3600) > 0 && <><span style={{ fontSize: '25px' }}>{Math.floor(leftTime % (24 *3600) / 3600) < 10 ? '0' : ''}{Math.floor(leftTime % (24 *3600) / 3600)}</span>&nbsp;hrs&nbsp;</>}
               {Math.floor((leftTime % (24 * 3600) % 3600) / 60) > 0 && <><span style={{ fontSize: '25px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) / 60) < 10 ? '0' : ''}{Math.floor((leftTime % (24 * 3600) % 3600) / 60)}</span>&nbsp;mins&nbsp;</>}
-              <><span style={{ fontSize: '25px' }}>{(Math.floor((leftTime % (24 * 3600) % 3600) % 60) < 10 && leftTime !== 0) ? '0' : ''}{Math.floor((leftTime % (24 * 3600) % 3600) % 60)}</span>&nbsp;secs</>
+              <><span style={{ fontSize: '25px' }}>{((((leftTime % (24 * 3600) % 3600) % 60) < 10) && Number(leftTime) !== 0) ? '0' : ''}{(leftTime % (24 * 3600) % 3600) % 60}</span>&nbsp;secs</>
             </div>
           <div className="stacking">
             <h1>STAKING</h1>
@@ -435,10 +470,10 @@ export default function App() {
           </div>
           <div className="stacking-info">
             <div className="stacking-info-card clock" id="desktop-clock">
-              {leftTime > 24 * 3600 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime / (24 * 3600))}</span>&nbsp;days&nbsp;</>}
-              {Math.floor(leftTime % (24 * 3600) / 3600) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime % (24 *3600) / 3600)}</span>&nbsp;hrs&nbsp;</>}
-              {Math.floor((leftTime % (24 * 3600) % 3600) / 60) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) / 60)}</span>&nbsp;mins&nbsp;</>}
-              <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) % 60)}</span>&nbsp;secs</>
+              {leftTime > 24 * 3600 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime / (24 * 3600)) < 10 ? '0' : ''}{Math.floor(leftTime / (24 * 3600))}</span>&nbsp;days&nbsp;</>}
+              {Math.floor(leftTime % (24 * 3600) / 3600) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor(leftTime % (24 *3600) / 3600) < 10 ? '0' : ''}{Math.floor(leftTime % (24 *3600) / 3600)}</span>&nbsp;hrs&nbsp;</>}
+              {Math.floor((leftTime % (24 * 3600) % 3600) / 60) > 0 && <><span style={{ fontSize: '35px' }}>{Math.floor((leftTime % (24 * 3600) % 3600) / 60) < 10 ? '0' : ''}{Math.floor((leftTime % (24 * 3600) % 3600) / 60)}</span>&nbsp;mins&nbsp;</>}
+              <><span style={{ fontSize: '35px' }}>{((((leftTime % (24 * 3600) % 3600) % 60) < 10) && Number(leftTime) !== 0) ? '0' : ''}{(leftTime % (24 * 3600) % 3600) % 60}</span>&nbsp;secs</>
             </div>
             <div className="stacking-info-card">
               <div className="info">
