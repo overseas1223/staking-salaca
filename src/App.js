@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Web3 from "web3"
+import { ethers } from "ethers"
 import {NotificationContainer, NotificationManager} from 'react-notifications'
 import WalletConnectProvider from "@walletconnect/web3-provider"
 import { TailSpin } from 'react-loader-spinner'
@@ -47,27 +48,35 @@ const provider = new WalletConnectProvider({
   },
 })
 
+const wssProvider = new ethers.providers.WebSocketProvider(process.env.REACT_APP_RPC_URL_WSS)
+
 export default function App() {
-  // console.log(process.env.REACT_APP_RPC_URL_WSS)
   const decimal = 10 ** 18
   let tokenContract = null
   let stakeContract = null
   let web3 = window.ethereum ? new Web3(window.ethereum) : new Web3(provider)
-  console.log(web3)
   
   tokenContract = new web3.eth.Contract(TOKEN_ABI, TOKEN_ADDRESS)
   stakeContract = new web3.eth.Contract(STAKING_CONTRACT_ABI, STAKING_CONTRACT_ADDRESS)
+  let contract = new ethers.Contract(STAKING_CONTRACT_ADDRESS, STAKING_CONTRACT_ABI, wssProvider);
 
+  const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [openDisconnect, setOpenDisconnect] = useState(false)
+
   const [chainId, setChainId] = useState('')
   const [wallet, setWallet] = useState('CONNECT WALLET')
   const [connector, setConnector] = useState(null)
   const [mode, setMode] = useState(-1)
   const [stakerMode, setStakerMode] = useState(-1)
-  const [period, setPeriod] = useState(0)
-  const [rewardRate, setRewardRate] = useState(0)
-  const [unstakeFee, setUnStakeFee] = useState(0)
+  
+  // initial setting
+  const [period, setPeriod] = useState([])
+  const [rewardRate, setRewardRate] = useState([])
+  const [unstakeFee, setUnStakeFee] = useState([])
+  const [minAmount, setMinAmount] = useState([])
+  const [maxAmount, setMaxAmount] = useState([])
+
   const [stakeAmount, setStakeAmount] = useState(0.0)
   const [withdrawAmount, setWithDrawAmount] = useState(0.0)
   const [stakers, setStakers] = useState(0)
@@ -78,14 +87,162 @@ export default function App() {
   const [stakedUsdAmount, setStakedUsdAmount] = useState(0)
   const [stakedAmount, setStakedAmount] = useState(0)
   const [rewardAmount, setRewardAmount] = useState(0)
+  const [transactions, setTransactions] = useState([])
+  const [blockTime, setBlockTime] = useState(0)
   const [timerId, setTimerId] = useState(null)
   const [leftTime, setLeftTime] = useState(0)
-  const [loading, setLoading] = useState(false)
+
+  const getInitialValue = async () => {
+    if((!localStorage.getItem('wallet') && !localStorage.getItem('walletconnect'))) return
+    setLoading(true)
+    const result = await Promise.all([
+      stakeContract.methods.getRewardRate(0).call(),
+      stakeContract.methods.getRewardRate(1).call(),
+      stakeContract.methods.getRewardRate(2).call(),
+      stakeContract.methods.getWithdrawFee(0, false).call(),
+      stakeContract.methods.getWithdrawFee(1, false).call(),
+      stakeContract.methods.getWithdrawFee(2, false).call(),
+      stakeContract.methods.getLockPeriod(0).call(),
+      stakeContract.methods.getLockPeriod(1).call(),
+      stakeContract.methods.getLockPeriod(2).call(),
+      stakeContract.methods.getTokenAmount(0).call(),
+      stakeContract.methods.getTokenAmount(1).call(),
+      stakeContract.methods.getTokenAmount(2).call()
+    ])
+    setLoading(false)
+
+    // set reward Reate
+    let _rewardRate = []
+    _rewardRate.push(Number(result[0]) / 100)
+    _rewardRate.push(Number(result[1]) / 100)
+    _rewardRate.push(Number(result[2]) / 100)
+    setRewardRate(_rewardRate)
+
+    // set unstake Fee
+    let _unStakeFee = []
+    _unStakeFee.push(Number(result[3]) / 100)
+    _unStakeFee.push(Number(result[4]) / 100)
+    _unStakeFee.push(Number(result[5]) / 100)
+    setUnStakeFee(_unStakeFee)
+
+    // set lock period
+    let _lockPeriod = []
+    _lockPeriod.push(Number(result[6]) * 30)
+    _lockPeriod.push(Number(result[7]) * 30)
+    _lockPeriod.push(Number(result[8]) * 30)
+    setPeriod(_lockPeriod)
+
+    // set min & max amount
+    let _min = []
+    let _max = []
+    _min.push(Number(result[9][0]))
+    _max.push(Number(result[9][1]))
+    _min.push(Number(result[10][0]))
+    _max.push(Number(result[10][1]))
+    _min.push(Number(result[11][0]))
+    _max.push(Number(result[11][1]))
+    setMinAmount(_min)
+    setMaxAmount(_max)
+  }
+
+  const getStakeState = async () => {
+    if(!stakeContract) return
+    setLoading(true)
+    const res1 = await Promise.all([
+      stakeContract.methods.getNumberofStakers().call(),
+      stakeContract.methods.getTotalStakedAmount().call(),
+      stakeContract.methods.isStartStaking(wallet).call(),
+      tokenContract.methods.balanceOf(wallet).call(),
+      stakeContract.methods.getTransactions().call()
+    ])
+    setLoading(false)
+    setStakers(Number(res1[0]))
+    setStakeTokenAmount(Math.round(Number(res1[1] * 100) / (decimal * 100)))
+    setBalance(Math.round(Number(res1[3] * 100) / (decimal * 100)))
+    setTransactions(res1[4][0])
+    setBlockTime(Number(res1[4][1]))
+
+    if(res1[2]) {
+      setLoading(true)
+      const result = await Promise.all([
+        stakeContract.methods.getStakedAmount(wallet).call(),
+        stakeContract.methods.getRewardAmount(wallet).call(),
+        stakeContract.methods.getStakerMode(wallet).call()
+      ])
+      setLoading(false)
+      setStakedAmount(Math.round(Number(result[0] * 100) / (decimal * 100)))
+      setRewardAmount(Math.round(Number(result[1] * 100) / (decimal * 100)))
+      setStakerMode(Number(result[2]))
+    }
+  }
+
+  const getLeftTime = async () => {
+    if(wallet === 'CONNECT WALLET') return
+    const time = await stakeContract.methods.getLeftStakeTime(wallet).call()
+    if(timerId) clearInterval(timerId)
+    setLeftTime(time)
+  }
+
+  const stake = async () => {
+    if(wallet !== 'CONNECT WALLET') {
+      if(!(stakeAmount >= minAmount[mode] && stakeAmount <= maxAmount[mode])) {
+        NotificationManager.error('Stake Amount is not correct', 'Error', 3000)
+        return
+      } else if(stakeAmount > balance) {
+        NotificationManager.error('Token balance is Insufficient', 'Error', 3000)
+        return
+      } else if(mode !== stakerMode && stakerMode !== -1) {
+        NotificationManager.info('You already started staking', 'Info', 3000)
+        return
+      }
+      setLoading(true)
+      await tokenContract.methods.approve(STAKING_CONTRACT_ADDRESS, BigInt(stakeAmount * decimal)).send({ from: wallet })
+      await stakeContract.methods.startStaking(BigInt(stakeAmount * decimal), mode).send({ from: wallet })
+      setLoading(false)
+      setStakeAmount(0)
+      getLeftTime()
+      getStakeState()
+    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
+  }
+
+  const withdraw = async () => {
+    if(wallet !== 'CONNECT WALLET') {
+      if(withdrawAmount <= 0) {
+        NotificationManager.error('Withdraw Amount should be more than zero', 'Error', 3000)
+        return
+      } else if(withdrawAmount >= stakedAmount) {
+        NotificationManager.error("staked Amount is Insufficient", 'Error', 3000)
+        return
+      }
+      setLoading(true)
+      await stakeContract.methods.withdraw(BigInt(withdrawAmount * decimal)).send({ from: wallet })
+      setLoading(false)
+      setWithDrawAmount(0)
+      getStakeState()
+    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
+  }
+
+  const harvest = async () => {
+    if(wallet !== 'CONNECT WALLET') {
+      if(rewardAmount <= 0) {
+        NotificationManager.error('No reward', 'Error', 3000)
+        return
+      }
+      if(leftTime !== 0) {
+        NotificationManager.error('Harvest is not available', 'Error', 3000)
+        return
+      }
+      setLoading(true)
+      await stakeContract.methods.harvest().send({ from: wallet })
+      setLoading(false)
+      getStakeState()
+    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
+  }
 
   const disconnectWallet = () => {
     setOpenDisconnect(false)
-    localStorage.clear()
     setWallet('CONNECT WALLET')
+    localStorage.clear()
     setBalance(0)
     setStakedAmount(0)
     setRewardAmount(0)
@@ -96,9 +253,12 @@ export default function App() {
     setChainId('')
     setStakeTokenAmount(0)
     setStakers(0)
-    setRewardRate(0)
-    setUnStakeFee(0)
-    setPeriod(0)
+    setRewardRate([])
+    setUnStakeFee([])
+    setPeriod([])
+    setMinAmount([])
+    setMaxAmount([])
+    setTransactions([])
     setMode(-1)
 
     if (connector && connector.connected) {
@@ -113,7 +273,7 @@ export default function App() {
       await window.ethereum.request({ method: "eth_requestAccounts" })
         .then(async (accounts) => {
           
-          let chainId = window.ethereum.chainId // 0x1 Ethereum, 0x2 testnet, 0x89 Polygon, etc.
+          let chainId = window.ethereum.chainId
           setWallet(accounts[0])
           localStorage.setItem('wallet', accounts[0])
           
@@ -145,114 +305,14 @@ export default function App() {
     }
   }
 
-  const getStakeState = async () => {
-    if(!stakeContract) return
-    // setLoading(true)
-    const res1 = await Promise.all([
-      stakeContract.methods.getNumberofStakers().call(),
-      stakeContract.methods.getTotalStakedAmount().call(),
-      stakeContract.methods.isStartStaking(wallet).call(),
-      tokenContract.methods.balanceOf(wallet).call(),
-    ])
-    setLoading(false)
-    setStakers(Number(res1[0]))
-    setStakeTokenAmount(Math.round(Number(res1[1] * 100) / (decimal * 100)))
-    setBalance(Math.round(Number(res1[3] * 100) / (decimal * 100)))
-
-    if(res1[2]) {
-      // setLoading(true)
-      const result = await Promise.all([
-        stakeContract.methods.getStakedAmount(wallet).call(),
-        stakeContract.methods.getRewardAmount(wallet).call(),
-        stakeContract.methods.getStakerMode(wallet).call()
-      ])
-      setLoading(false)
-      setStakedAmount(Math.round(Number(result[0] * 100) / (decimal * 100)))
-      setRewardAmount(Math.round(Number(result[1] * 100) / (decimal * 100)))
-      setStakerMode(result[2])
-    }
-  }
-
-  const getRateAndFee = async () => {
-    if((!localStorage.getItem('wallet') && !localStorage.getItem('walletconnect')) || mode === -1) return
-    // setLoading(true)
-    const result = await Promise.all([
-      stakeContract.methods.getRewardRate(mode).call(),
-      stakeContract.methods.getWithdrawFee(mode, false).call(),
-    ])
-    setLoading(false)
-    setRewardRate(Number(result[0]) / 100)
-    setUnStakeFee(Number(result[1]) / 100)
-    setPeriod(mode === 0 ? 30 : mode * 90)
-  }
-
-  const stake = async () => {
-    if(wallet !== 'CONNECT WALLET') {
-      if(stakeAmount <= 0) {
-        NotificationManager.error('Stake Amount should be more than zero', 'Error', 3000)
-        return
-      } else if(stakeAmount > balance) {
-        NotificationManager.error('Token balance is Insufficient', 'Error', 3000)
-        return
-      } else if(mode !== stakerMode && stakerMode !== -1) {
-        NotificationManager.info('You already started staking', 'Info', 3000)
-        return
-      }
-      setLoading(true)
-      await tokenContract.methods.approve(STAKING_CONTRACT_ADDRESS, BigInt(stakeAmount * decimal)).send({ from: wallet })
-      await stakeContract.methods.startStaking(BigInt(stakeAmount * decimal), mode).send({ from: wallet })
-      setLoading(false)
-      setStakeAmount(0)
-      getLeftTime()
-      getStakeState()
-    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
-  }
-
-  const getLeftTime = async () => {
-    if(wallet === 'CONNECT WALLET') return
-    const time = await stakeContract.methods.getLeftStakeTime(wallet).call()
-    if(timerId) clearInterval(timerId)
-    setLeftTime(time)
-  }
-
-  const withdraw = async () => {
-    if(wallet !== 'CONNECT WALLET') {
-      if(withdrawAmount <= 0) {
-        NotificationManager.error('Withdraw Amount should be more than zero', 'Error', 3000)
-        return
-      } else if(withdrawAmount >= stakedAmount) {
-        NotificationManager.error("staked Amount is Insufficient", 'Error', 3000)
-        return
-      }
-      setLoading(true)
-      await stakeContract.methods.withdraw(BigInt(withdrawAmount * decimal)).send({ from: wallet })
-      setLoading(false)
-      setWithDrawAmount(0)
-      getStakeState()
-    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
-  }
-
-  const harvest = async () => {
-    if(wallet !== 'CONNECT WALLET') {
-      if(rewardAmount <= 0) {
-        NotificationManager.error('No reward', 'Error', 3000)
-        return
-      }
-      setLoading(true)
-      await stakeContract.methods.harvest().send({ from: wallet })
-      setLoading(false)
-      getStakeState()
-    } else NotificationManager.error('Please connect wallet', 'Error', 3000)
-  }
-
   useEffect(() => { 
     if(chainId === CHAIN_ID && wallet !== 'CONNECT WALLET') {
-      getStakeState() 
+      getStakeState()
       getLeftTime()
+      getInitialValue()
       setMode(0)
     }
   }, [chainId])
-  useEffect(() => { getRateAndFee() }, [mode])
   useEffect(() => {
     if(leftTime > 0) {
       if(timerId === null) {
@@ -280,36 +340,20 @@ export default function App() {
   }, [])
   useEffect(() => {
     if(wallet !== 'CONNECT WALLET') {
+      setMode(0)
+      getInitialValue()
       getStakeState()
       getLeftTime()
-      setMode(0)
     }
   }, [wallet])
   useEffect(() => {
-    provider.on("accountsChanged", (accounts) => {
-      console.log(accounts)
-    });
-    // if (connector) {
-    //   connector.on("session_update", (error, payload) => {
-    //     console.log(payload)
-    //   })
+    // provider.on("accountsChanged", (accounts) => {
+    //   console.log(accounts)
+    // });
 
-    //   connector.on("connect", (error, payload) => {
-    //     const { chainId, accounts } = connector;
-    //     setChainId('0x' + chainId.toString(16))
-    //     setWallet(accounts[0])
-    //   })
-
-    //   connector.on("disconnect", (error, payload) => {
-    //     disconnectWallet()
-    //   })
-
-    //   if (connector.connected) {
-    //     const { chainId, accounts } = connector;
-    //     setChainId('0x' + chainId.toString(16))
-    //     setWallet(accounts[0])
-    //   }
-    // }
+    // contract.on("*", (from, to, value, event) => {
+    //   console.log("event: ", event);
+    // });
   }, [connector])
 
   const closeIcon = (
@@ -379,9 +423,9 @@ export default function App() {
       <Modal open={openDisconnect} onClose={() => setOpenDisconnect(false)} center classNames={{overlay: 'overlay', modal: 'modal'}} animationDuration={500}  closeIcon={closeIcon}>
         <h2>Disconnect Wallet</h2>
         <div className="wallet" onClick={disconnectWallet}>
-          <span>Disconnect {wallet.substring(0, 9).toUpperCase()}...{wallet.substring(-1, 4).toUpperCase()}</span>
+          <span>Disconnect</span>
+          <span>{wallet.substring(0, 9).toUpperCase()}...{wallet.substring(wallet.length - 4).toUpperCase()}</span>
         </div>
-        
       </Modal>
       <div className="app">
         <div className="header">
@@ -397,7 +441,7 @@ export default function App() {
               else setOpenDisconnect(true)
             }}>
               <img src={connectIcon} alt="connect-icon"/>
-              <span style={{ marginLeft: '8px' }}>{wallet === 'CONNECT WALLET' ? wallet : `${wallet.substring(0, 9).toUpperCase()}...${wallet.substring(-1, 4).toUpperCase()}`}</span>
+              <span style={{ marginLeft: '8px' }}>{wallet === 'CONNECT WALLET' ? wallet : `${wallet.substring(0, 9).toUpperCase()}...${wallet.substring(wallet.length - 4).toUpperCase()}`}</span>
             </button>
           </div>
         </div>
@@ -416,22 +460,27 @@ export default function App() {
             <br/><br/>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <ButtonGroup
-                buttons={["1 month", "3 month", "6 month"]}
+                buttons={["Standard", "Gold", "Platinum"]}
                 method={mode}
                 setMethod={setMode}
               />
             </div>
             <div className="reward">
               <div>
-                <h3 style={{ marginBottom: '8px' }}>Lock period: first {period} days</h3>
-                <h3 style={{ marginBottom: '8px' }}>Early unstake fee: {unstakeFee}%</h3>
+                <h3 style={{ marginBottom: '8px' }}>Lock period: first {wallet === 'CONNECT WALLET' ? 0 : period[mode]} days</h3>
+                <h3 style={{ marginBottom: '8px' }}>Early unstake fee: {wallet === 'CONNECT WALLET' ? 0 : unstakeFee[mode]}%</h3>
                 <h3 style={{ marginBottom: '8px' }}>Status: {leftTime > 0 ? 'Locked' : 'UnLocked' }</h3>
-                {/* <h3 style={{ marginBottom: '8px' }}>Minimum Staking Amount: 3000000</h3> */}
+                {(minAmount.length > 0 && maxAmount.length > 0) &&
+                  <>
+                    <h3 style={{ marginBottom: '8px' }}>Minimum Staking Amount: {minAmount[mode].toLocaleString()}</h3>
+                    <h3 style={{ marginBottom: '8px' }}>Maximum Staking Amount: {mode === 2 ? 'Unlimited' : maxAmount[mode].toLocaleString()}</h3>
+                  </>
+                }
               </div>
               <div>
                 <h3 style={{ textAlign: 'right', marginBottom: '8px' }}>Reward Rate</h3>
-                <h1 style={{ textAlign: 'right', marginBottom: '8px', color: '#a3ff12' }}>{rewardRate}%</h1>
-                <h3 style={{ textAlign: 'right', marginBottom: '8px' }}>Reward Per Day</h3>
+                <h1 style={{ textAlign: 'right', marginBottom: '8px', color: '#a3ff12' }}>{wallet === 'CONNECT WALLET' ? 0 : rewardRate[mode]}%</h1>
+                <h3 style={{ textAlign: 'right', marginBottom: '8px' }}>Reward Per Month</h3>
               </div>
             </div>
             <div style={{ marginBottom: '20px' }}>
@@ -516,21 +565,19 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      <tr>
-                        <td>0xe1ce...269a</td>
-                        <td>555 SALACA</td>
-                        <td>25 mins</td>
-                      </tr>
-                      <tr>
-                        <td>0x10D1...8570</td>
-                        <td>555 SALACA</td>
-                        <td>25 mins</td>
-                      </tr>
-                      <tr>
-                        <td>0x9Dbe...0119</td>
-                        <td>555 SALACA</td>
-                        <td>25 mins</td>
-                      </tr>
+                      {transactions.map((transaction, index) => [
+                        <tr key={index}>
+                          <td>{transaction.caller.substring(0,9).toUpperCase()}...{transaction.caller.substring(transaction.caller.length - 4).toUpperCase()}</td>
+                          <td>{(Number(transaction.amount) / decimal).toFixed(0.1)}&nbsp;SALACA</td>
+                          <td>
+                            {
+                              (Number(blockTime) - Number(transaction.stakeTime)) < 60 ? <>{Number(blockTime) - Number(transaction.stakeTime)} secs</> :
+                              (Number(blockTime) - Number(transaction.stakeTime)) < 3600 ? <>{Math.floor((Number(blockTime) - Number(transaction.stakeTime)) / 60)} mins</> :
+                              (Number(blockTime) - Number(transaction.stakeTime)) < 3600 * 24 ? <>{Math.floor((Number(blockTime) - Number(transaction.stakeTime)) / 3600)} hrs</> : 
+                              <>{Math.floor((Number(blockTime) - Number(transaction.stakeTime)) / (3600 * 24))} days</>}
+                          </td>
+                        </tr>
+                      ])}
                     </tbody>
                   </table>
               </div>
