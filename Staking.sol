@@ -1,440 +1,10 @@
-
-// SPDX-License-Identifier: GPL-3.0
-// File: @openzeppelin/contracts/utils/math/SafeMath.sol
-
-
-// OpenZeppelin Contracts (last updated v4.6.0) (utils/math/SafeMath.sol)
-
-pragma solidity ^0.8.0;
-
-// CAUTION
-// This version of SafeMath should only be used with Solidity 0.8 or later,
-// because it relies on the compiler's built in overflow checks.
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations.
- *
- * NOTE: `SafeMath` is generally not needed starting with Solidity 0.8, since the compiler
- * now has built in overflow checking.
- */
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            uint256 c = a + b;
-            if (c < a) return (false, 0);
-            return (true, c);
-        }
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b > a) return (false, 0);
-            return (true, a - b);
-        }
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-            // benefit is lost if 'b' is also tested.
-            // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-            if (a == 0) return (true, 0);
-            uint256 c = a * b;
-            if (c / a != b) return (false, 0);
-            return (true, c);
-        }
-    }
-
-    /**
-     * @dev Returns the division of two unsigned integers, with a division by zero flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a / b);
-        }
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers, with a division by zero flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a % b);
-        }
-    }
-
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     *
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a + b;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a - b;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     *
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a * b;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers, reverting on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator.
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a / b;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * reverting when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a % b;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * CAUTION: This function is deprecated because it requires allocating memory for the error
-     * message unnecessarily. For custom revert reasons use {trySub}.
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b <= a, errorMessage);
-            return a - b;
-        }
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers, reverting with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a / b;
-        }
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * reverting with custom message when dividing by zero.
-     *
-     * CAUTION: This function is deprecated because it requires allocating memory for the error
-     * message unnecessarily. For custom revert reasons use {tryMod}.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a % b;
-        }
-    }
-}
-
-// File: @openzeppelin/contracts/token/ERC20/IERC20.sol
-
-
-// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Interface of the ERC20 standard as defined in the EIP.
- */
-interface IERC20 {
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
-
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
-    function balanceOf(address account) external view returns (uint256);
-
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `to`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transfer(address to, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender) external view returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `from` to `to` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool);
-}
-
-// File: @openzeppelin/contracts/utils/Context.sol
-
-
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-pragma solidity ^0.8.0;
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
-}
-
-// File: @openzeppelin/contracts/access/Ownable.sol
-
-
-// OpenZeppelin Contracts (last updated v4.7.0) (access/Ownable.sol)
-
-pragma solidity ^0.8.0;
-
-
-/**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
- *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
- *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
- */
-abstract contract Ownable is Context {
-    address private _owner;
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-    constructor() {
-        _transferOwnership(_msgSender());
-    }
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        _checkOwner();
-        _;
-    }
-
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if the sender is not the owner.
-     */
-    function _checkOwner() internal view virtual {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-    }
-
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called by the current owner.
-     *
-     * NOTE: Renouncing ownership will leave the contract without an owner,
-     * thereby removing any functionality that is only available to the owner.
-     */
-    function renounceOwnership() public virtual onlyOwner {
-        _transferOwnership(address(0));
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        _transferOwnership(newOwner);
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Internal function without access restriction.
-     */
-    function _transferOwnership(address newOwner) internal virtual {
-        address oldOwner = _owner;
-        _owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
-    }
-}
-
-// File: staking-salaca/staking.sol
-
-
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.9;
 
-
-
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface IBEP20 {
     /**
@@ -777,7 +347,7 @@ contract StakingPlatform is Ownable {
     using SafeBEP20 for IBEP20;
 
     struct Staker {
-        // 0 : 1 month, 1 : 3 month, 2 : 6 month
+        // 0 : 6 month, 1 : 6 month, 2 : 12 month
         uint256 _mode;
         // Moment staker starts staking
         uint256 _stakeStarttime;
@@ -791,10 +361,17 @@ contract StakingPlatform is Ownable {
         bool _isStaked;
     }
 
+    struct Transaction {
+        address caller;
+        uint256 amount;
+        uint256 stakeTime;
+    }
+
     // Array of address of stakers : for : to get staker list easily
     uint256 public _stakerCount;
     // Map of details of stakers
     mapping(address => Staker) private _stakerInfor;
+    Transaction [] private _transactions;
 
     // Total amount of staked token
     uint256 public _totalStaked;
@@ -816,7 +393,10 @@ contract StakingPlatform is Ownable {
     mapping(uint256 => uint256) public _rewardRate;
     // % of harvest fee
     uint256 private _harvestRate;
-
+    // min & max token amount
+    mapping(uint256 => mapping(bool => uint256)) public _tokenAmount;
+    // lockup time
+    mapping(uint256 => uint256) public _lockupTime;
     // bounty wallet address
     address _bountyWallet;
 
@@ -828,18 +408,29 @@ contract StakingPlatform is Ownable {
 
     function init() private {
         // set initial reward fee rate
-        _rewardRate[0] = 100;
-        _rewardRate[1] = 200;
-        _rewardRate[2] = 300;
+        _rewardRate[0] = 300;
+        _rewardRate[1] = 500;
+        _rewardRate[2] = 1800;
         // set initial unstake fee rate
-        _withdrawFee[0][false] = 1000;
-        _withdrawFee[0][true] = 500;
-        _withdrawFee[1][false] = 2000;
-        _withdrawFee[1][true] = 1000;
-        _withdrawFee[2][false] = 3000;
-        _withdrawFee[2][true] = 1500;
+        _withdrawFee[0][false] = 5000;
+        _withdrawFee[0][true] = 0;
+        _withdrawFee[1][false] = 5000;
+        _withdrawFee[1][true] = 0;
+        _withdrawFee[2][false] = 5000;
+        _withdrawFee[2][true] = 0;
         // set initial harvest fee rate
         _harvestRate = 100;
+        // Min & Max token amount
+        _tokenAmount[0][false] = 10000;
+        _tokenAmount[0][true] = 100000;
+        _tokenAmount[1][false] = 100000;
+        _tokenAmount[1][true] = 1000000;
+        _tokenAmount[2][false] = 1500000;
+        _tokenAmount[2][true] = 10**50;
+        //Lockup Time
+        _lockupTime[0] = 6;
+        _lockupTime[1] = 6;
+        _lockupTime[2] = 12;
     }
 
     function setBountyWalletAddress(address bountyWallet) external onlyOwner {
@@ -854,7 +445,13 @@ contract StakingPlatform is Ownable {
 
         // check the stake flag and mode. If staker tries to stake in more than 2 modes, deny it.
         if (_stakerInfor[msg.sender]._isStaked) {
-            require(_stakerInfor[msg.sender]._mode == mode, "Can't stake in more than 2 modes.");
+            uint256 leftTime = getLeftStakeTime(msg.sender);
+            if(leftTime > 0) {
+                require(_stakerInfor[msg.sender]._mode == mode, "Can't stake in more than 2 modes.");
+            } else {
+                _stakerInfor[msg.sender]._mode = mode;
+                _stakerInfor[msg.sender]._stakeStarttime = block.timestamp;
+            }
         } else {
             _stakerInfor[msg.sender]._stakeStarttime = block.timestamp;
             _stakerInfor[msg.sender]._isStaked = true;
@@ -876,15 +473,33 @@ contract StakingPlatform is Ownable {
         _stakerInfor[msg.sender]._stakedAmount = _stakerInfor[msg.sender]._stakedAmount.add(amount);
         _totalStaked = _totalStaked.add(amount);
 
+        Transaction memory _tran;
+        if(_transactions.length == 5) {
+            for(uint256 i = 0 ; i < 4; i++) _transactions[i] = _transactions[i + 1];
+            _transactions.pop();
+        }
+        _tran.caller = msg.sender;
+        _tran.amount = amount;
+        _tran.stakeTime = block.timestamp;
+        _transactions.push(_tran);
+
         emit Staked(msg.sender, amount);
     }
 
     function updateReward() private {
         uint256 stakerStakedAmount = _stakerInfor[msg.sender]._stakedAmount;
 
-        uint256 newReward = stakerStakedAmount.mul(block.timestamp.sub(_stakerInfor[msg.sender]._stakeUpdatetime)).mul(_rewardRate[_stakerInfor[msg.sender]._mode]).div(1 days).div(1e4);
+        uint256 newReward = stakerStakedAmount.mul(block.timestamp.sub(_stakerInfor[msg.sender]._stakeUpdatetime)).mul(_rewardRate[_stakerInfor[msg.sender]._mode]).div(1 days).div(30).div(1e4);
         _stakerInfor[msg.sender]._rewardAmount = _stakerInfor[msg.sender]._rewardAmount.add(newReward);
         _stakerInfor[msg.sender]._stakeUpdatetime = block.timestamp;
+    }
+
+    function getTokenAmount(uint256 mode) public view returns (uint256, uint256) {
+        return (_tokenAmount[mode][false], _tokenAmount[mode][true]);
+    }
+
+    function getTransactions() public view returns (Transaction [] memory, uint256) {
+        return (_transactions, block.timestamp);
     }
 
     function getNumberofStakers() public view returns (uint256) {
@@ -901,10 +516,12 @@ contract StakingPlatform is Ownable {
     }
 
     function getStakedAmount(address addr) public view returns (uint256) {
+        require(isStartStaking(addr) == true, "Not a staker");
         return _stakerInfor[addr]._stakedAmount;
     }
 
     function getRewardAmount(address addr) public view returns (uint256) {
+        require(isStartStaking(addr) == true, "Not a staker");
         return _stakerInfor[addr]._rewardAmount;
     }
 
@@ -912,12 +529,14 @@ contract StakingPlatform is Ownable {
         return _totalStaked;
     }
 
-    function getRewardRate(uint256 index) public view returns (uint256) {
-        return _rewardRate[index];
+    function getRewardRate(uint256 mode) public view returns (uint256) {
+        require(mode >=0 && mode <=2, "Invalid Mode");
+        return _rewardRate[mode];
     }
 
-    function getWithdrawFee(uint256 index, bool lockState) public view returns (uint256) {
-        return _withdrawFee[index][lockState];
+    function getWithdrawFee(uint256 mode, bool lockState) public view returns (uint256) {
+        require(mode >=0 && mode <=2, "Invalid Mode");
+        return _withdrawFee[mode][lockState];
     }
 
     function getHarvestRate() public view returns (uint256) {
@@ -927,20 +546,20 @@ contract StakingPlatform is Ownable {
     function getLeftStakeTime(address addr) public view returns (uint256) {
         if(!_stakerInfor[addr]._isStaked) return 0;
         uint256 time = 0;
-        if(_stakerInfor[addr]._mode == 0) time = 24 * 3600 * 30;
-        else if(_stakerInfor[addr]._mode == 1) time = 24 * 3600 * 90;
-        else if(_stakerInfor[addr]._mode == 2) time = 24 * 3600 * 180;
-        return _stakerInfor[addr]._stakeStarttime + time - block.timestamp;
+        uint256 month = 24 * 3600 * 30; 
+        if(_stakerInfor[addr]._mode == 0) time = _lockupTime[0].mul(month);
+        else if(_stakerInfor[addr]._mode == 1) time = _lockupTime[1].mul(month);
+        else if(_stakerInfor[addr]._mode == 2) time = _lockupTime[2].mul(month);
+
+        uint256 leftTime = _stakerInfor[addr]._stakeStarttime + time - block.timestamp;
+        if(leftTime < 0) return 0;
+        else return leftTime;
     }
 
-    function getLockPeriod(address addr) private view returns (uint256) {
-        require(isStartStaking(addr), "Not a staker");
+    function getLockPeriod(uint256 mode) public view returns (uint256) {
+        require(mode >=0 && mode <= 2, "Invalid Mode");
 
-        uint256 lockPeriod = 0;
-        if ( _stakerInfor[msg.sender]._mode == 0 ) { lockPeriod =  30 days; }
-        else if ( _stakerInfor[msg.sender]._mode == 1 ) { lockPeriod =  90 days; }
-        else if ( _stakerInfor[msg.sender]._mode == 2 ) { lockPeriod =  180 days; }
-        return lockPeriod;
+        return _lockupTime[mode];
     }
 
     function withdraw(uint256 amount) external {
@@ -952,8 +571,8 @@ contract StakingPlatform is Ownable {
         uint256 during = block.timestamp.sub(_stakerInfor[msg.sender]._stakeStarttime);
         uint256 fee = 0;
 
-        uint256 lockPeriod = getLockPeriod(msg.sender);
-        if (during < lockPeriod) {
+        uint256 lockPeriod = getLockPeriod(_stakerInfor[msg.sender]._mode);
+        if (during < lockPeriod.mul(30 * 24 * 3600)) {
             // set withdraw fee if staker tries to withdraw token before locked period finishes
             fee = _withdrawFee[_stakerInfor[msg.sender]._mode][false];
         } else {
@@ -970,10 +589,23 @@ contract StakingPlatform is Ownable {
         uint256 amountReflectFee = amountTobeWithdrawn.sub(amountTobeWithdrawn.mul(fee).div(1e4));
 
         _token.safeTransfer(msg.sender, amountReflectFee);
-        // _token.safeTransfer(owner(), amountTobeWithdrawn.sub(amountReflectFee));
         _token.safeTransfer(_bountyWallet, amountTobeWithdrawn.sub(amountReflectFee));
 
         emit Withdraw(msg.sender, amountTobeWithdrawn);
+    }
+
+    function setTokenAmount(uint256 mode, uint256 min, uint256 max) external onlyOwner {
+        require(mode >=0 && mode <=2, "Invalid Mode");
+        require(min < max, "Invalid Amount");
+
+        _tokenAmount[mode][false] = min;
+        _tokenAmount[mode][true] = max;
+    }
+
+    function setLockupTime(uint256 mode, uint256 lockup) external onlyOwner {
+        require(mode >=0 && mode <=2, "Invalid Mode");
+
+        _lockupTime[mode] = lockup;
     }
 
     function setUnstakeFeeRate(uint256 withdrawFee, uint256 mode, bool isLocked) external onlyOwner {
@@ -995,6 +627,8 @@ contract StakingPlatform is Ownable {
     }
 
     function harvest() public {
+        uint256 leftTime = getLeftStakeTime(msg.sender);
+        require(leftTime == 0 , "Harvest is not available");
         updateReward();
 
         uint256 curReward = _stakerInfor[msg.sender]._rewardAmount;
